@@ -85,7 +85,7 @@ Or using Docker:
   "mcpServers": {
     "crypto-ta": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "crypto-ta-mcp"]
+      "args": ["run", "-i", "--rm", "ghcr.io/ksinica/crypto-ta-mcp:latest"]
     }
   }
 }
