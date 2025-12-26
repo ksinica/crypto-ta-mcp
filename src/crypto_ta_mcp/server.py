@@ -1,13 +1,15 @@
 """FastMCP server for Crypto Technical Analysis."""
 
-from datetime import date, timezone, datetime
+from datetime import datetime, timezone
 
 from mcp.server.fastmcp import FastMCP
 
 from .binance import BinanceClient, BinanceAPIError, FundingRateData
+from .defillama import DefiLlamaClient, DefiLlamaAPIError
 from .formatters import format_output, OutputFormat
 from .indicators import process_timeframe
 from .models import (
+    ChainTVLResponse,
     DerivativesData,
     FundingRate,
     FundingTrend,
@@ -17,6 +19,7 @@ from .models import (
     PerpDataResponse,
     SpotDataResponse,
     Timeframes,
+    TVLChangeData,
 )
 
 # Initialize FastMCP server
@@ -195,6 +198,71 @@ async def fetch_perp_data(symbol: str, output_format: str = "json") -> str:
         return format_output({"error": str(e), "symbol": symbol}, output_format)
     except Exception as e:
         return format_output({"error": f"Unexpected error: {e}", "symbol": symbol}, output_format)
+
+
+@mcp.tool()
+async def fetch_chain_tvl(chain: str, output_format: str = "json") -> str:
+    """
+    Fetch comprehensive DeFi metrics for a blockchain using DefiLlama API.
+    
+    Args:
+        chain: Blockchain name (e.g., "Ethereum", "Solana", "Arbitrum", "BSC", "Polygon")
+        output_format: Output format - "json" (default, most token-efficient) or "yaml"
+    
+    Returns:
+        Comprehensive chain metrics including:
+        - TVL (Total Value Locked) in USD
+        - TVL change percentages (1d, 7d, 1m)
+        - Stablecoins market cap on chain
+        - Active addresses (24h)
+        - App revenue (24h)
+        - NFT trading volume (24h)
+        - Bridged TVL
+        
+        Output is returned as a formatted string in the specified format.
+    """
+    # Validate format first
+    if not OutputFormat.validate(output_format):
+        return format_output(
+            {
+                "error": f"Invalid output format '{output_format}'. Must be one of: {', '.join(OutputFormat.all())}",
+                "chain": chain
+            },
+            OutputFormat.JSON
+        )
+    
+    try:
+        async with DefiLlamaClient() as client:
+            tvl_data = await client.get_chain_tvl(chain)
+        
+        # Build TVL change data
+        tvl_change = TVLChangeData(
+            change_1d_pct=round(tvl_data.tvl_change.change_1d, 2) if tvl_data.tvl_change.change_1d is not None else None,
+            change_7d_pct=round(tvl_data.tvl_change.change_7d, 2) if tvl_data.tvl_change.change_7d is not None else None,
+            change_1m_pct=round(tvl_data.tvl_change.change_1m, 2) if tvl_data.tvl_change.change_1m is not None else None,
+        )
+        
+        # Build response
+        response = ChainTVLResponse(
+            chain=tvl_data.name,
+            tvl=round(tvl_data.tvl, 2),
+            tvl_change=tvl_change,
+            token_symbol=tvl_data.token_symbol,
+            chain_id=tvl_data.chain_id,
+            stables_mcap=round(tvl_data.stables_mcap, 2) if tvl_data.stables_mcap is not None else None,
+            active_addresses_24h=tvl_data.active_addresses_24h,
+            app_revenue_24h=round(tvl_data.app_revenue_24h, 2) if tvl_data.app_revenue_24h is not None else None,
+            nft_volume_24h=round(tvl_data.nft_volume_24h, 2) if tvl_data.nft_volume_24h is not None else None,
+            bridged_tvl=round(tvl_data.bridged_tvl, 2) if tvl_data.bridged_tvl is not None else None,
+            as_of=get_current_date(),
+        )
+        
+        return format_output(response.model_dump(), output_format)
+    
+    except DefiLlamaAPIError as e:
+        return format_output({"error": str(e), "chain": chain}, output_format)
+    except Exception as e:
+        return format_output({"error": f"Unexpected error: {e}", "chain": chain}, output_format)
 
 
 def main():

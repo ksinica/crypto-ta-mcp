@@ -1,9 +1,10 @@
 # Crypto Technical Analysis MCP Server
 
-An MCP (Model Context Protocol) server that fetches cryptocurrency market data from Binance and computes technical indicators for systematic analysis.
+An MCP (Model Context Protocol) server that fetches cryptocurrency market data from Binance and computes technical indicators for systematic analysis, plus DeFi metrics from DefiLlama.
 
 ## Features
 
+### Crypto Market Data (Binance)
 - **Multi-timeframe analysis**: Monthly, Weekly, and Daily data
 - **Technical indicators**: Moving Averages, Bollinger Bands, ATR, Volume Analysis
 - **Swing point detection**: Automated pivot/fractal detection
@@ -12,6 +13,12 @@ An MCP (Model Context Protocol) server that fetches cryptocurrency market data f
   - **Candlestick patterns**: 15+ patterns including doji, hammer, engulfing, three white soldiers, etc.
   - **Swing patterns**: Head & Shoulders and Inverse Head & Shoulders with volume confirmation
 - **Derivatives data**: Funding rates and Open Interest (perpetuals only)
+
+### DeFi Metrics (DefiLlama)
+- **Blockchain TVL**: Total Value Locked with historical change percentages
+- **Stablecoins**: Market cap on chain
+- **On-chain Activity**: Active addresses, app revenue, NFT volume
+- **Cross-chain**: Bridged TVL tracking
 
 ## Installation
 
@@ -128,6 +135,47 @@ Fetches perpetual futures market data with derivatives metrics.
 - Current funding rate with trend analysis
 - Open interest with 24h change
 
+### `fetch_chain_tvl`
+
+Fetches comprehensive DeFi metrics for a blockchain using DefiLlama API.
+
+**Parameters:**
+- `chain` (string, required): Blockchain name (e.g., `Ethereum`, `Solana`, `Arbitrum`, `BSC`, `Polygon`, `Avalanche`)
+- `output_format` (string, optional): Output format - `json` (default, most token-efficient) or `yaml`
+
+**Returns:** Comprehensive chain metrics including:
+- **TVL (Total Value Locked)** in USD
+- **TVL change percentages** (1d, 7d, 30d) - calculated from historical data
+- **Native token symbol** and chain ID
+- **Stablecoins market cap** on the chain
+- **Active addresses** in last 24 hours
+- **App revenue** in last 24 hours
+- **NFT trading volume** in last 24 hours
+- **Bridged TVL** to other chains
+
+**Example Response:**
+```json
+{
+  "chain": "Solana",
+  "tvl": 8476976972.02,
+  "tvl_change": {
+    "change_1d_pct": -2.45,
+    "change_7d_pct": 15.32,
+    "change_1m_pct": 8.76
+  },
+  "token_symbol": "SOL",
+  "chain_id": null,
+  "stables_mcap": 15600052883.12,
+  "active_addresses_24h": 5234567,
+  "app_revenue_24h": 6984911.0,
+  "nft_volume_24h": 1234567.89,
+  "bridged_tvl": 234567890.12,
+  "as_of": "2025-12-26"
+}
+```
+
+**Note:** TVL percentage changes are calculated from historical data. If historical data is unavailable for certain metrics, those fields will be `null`.
+
 ## Output Schema
 
 The output is returned as a formatted string (JSON or YAML).
@@ -191,6 +239,7 @@ timeframes:
 
 - **Spot Market**: Binance Public API (`api.binance.com`)
 - **Perpetual Futures**: Binance Futures API (`fapi.binance.com`)
+- **DeFi Metrics**: DefiLlama API (`api.llama.fi`)
 
 No API keys required - uses public endpoints only.
 
@@ -265,6 +314,43 @@ Detected using swing point analysis across the full timeframe:
 - Clear neckline: identifiable support/resistance
 - Volume behavior: assessed for quality rating
 - Completion: pattern finalized on right shoulder formation
+
+## DeFi Metrics Details
+
+### TVL Change Calculation
+
+The `fetch_chain_tvl` tool provides TVL (Total Value Locked) percentage changes over multiple time periods. These are calculated using historical TVL data from DefiLlama:
+
+1. **Primary Source**: Attempts to fetch change data from the main `/v2/chains` endpoint
+2. **Fallback Calculation**: If unavailable, fetches historical data from `/v2/historicalChainTvl/{chain}` and calculates:
+   - `change_1d_pct`: `((current_tvl - tvl_1d_ago) / tvl_1d_ago) × 100`
+   - `change_7d_pct`: `((current_tvl - tvl_7d_ago) / tvl_7d_ago) × 100`
+   - `change_1m_pct`: `((current_tvl - tvl_30d_ago) / tvl_30d_ago) × 100`
+
+### Supported Chains
+
+DefiLlama tracks 200+ blockchains. Popular chains include:
+- Layer 1: Ethereum, Solana, BNB Chain (BSC), Cardano, Avalanche, Polygon, Algorand
+- Layer 2: Arbitrum, Optimism, Base, zkSync Era, Polygon zkEVM
+- Alternative L1s: Sui, Aptos, Near, Cosmos, Polkadot
+
+Use the exact chain name as shown on [DefiLlama](https://defillama.com/chains) (case-insensitive).
+
+### Metric Availability
+
+Not all metrics are available for all chains:
+
+| Metric | Availability |
+|--------|--------------|
+| TVL | All chains |
+| TVL Changes | All chains (calculated from historical data) |
+| Stablecoins Market Cap | Most major chains |
+| Active Addresses | Limited chains |
+| App Revenue | Major DeFi chains |
+| NFT Volume | Chains with NFT marketplaces |
+| Bridged TVL | Multi-chain ecosystems |
+
+Fields return `null` when data is unavailable for a specific chain.
 
 ## License
 

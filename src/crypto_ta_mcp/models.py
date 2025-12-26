@@ -327,3 +327,30 @@ class PerpDataResponse(BaseModel):
     current_price: float
     derivatives: DerivativesData
 
+
+# --- Chain TVL Response ---
+
+
+class TVLChangeData(BaseModel):
+    """TVL change percentages over different time periods."""
+
+    change_1d_pct: Optional[float] = Field(default=None, description="TVL change in last 24 hours (%)")
+    change_7d_pct: Optional[float] = Field(default=None, description="TVL change in last 7 days (%)")
+    change_1m_pct: Optional[float] = Field(default=None, description="TVL change in last 30 days (%)")
+
+
+class ChainTVLResponse(BaseModel):
+    """Response for fetch_chain_tvl tool."""
+
+    chain: str = Field(description="Blockchain name")
+    tvl: float = Field(description="Total Value Locked in USD")
+    tvl_change: TVLChangeData = Field(description="TVL change percentages")
+    token_symbol: Optional[str] = Field(default=None, description="Native token symbol")
+    chain_id: Optional[int] = Field(default=None, description="EVM chain ID if applicable")
+    stables_mcap: Optional[float] = Field(default=None, description="Stablecoins market cap on chain (USD)")
+    active_addresses_24h: Optional[int] = Field(default=None, description="Active addresses in last 24h")
+    app_revenue_24h: Optional[float] = Field(default=None, description="Total app revenue in last 24h (USD)")
+    nft_volume_24h: Optional[float] = Field(default=None, description="NFT trading volume in last 24h (USD)")
+    bridged_tvl: Optional[float] = Field(default=None, description="TVL bridged to other chains (USD)")
+    as_of: str = Field(description="Timestamp of the data")
+
